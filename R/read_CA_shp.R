@@ -3,6 +3,7 @@ library(sf)
 library(janitor)
 library(fiftystater)
 library(ggpomological)
+library(tigris)
 
 
 
@@ -19,12 +20,22 @@ ggplot() +
   geom_sf(data = ca_schools, 
           color = "#4f5157", 
           alpha = 0.6) + # add the schools point layer
-  coord_sf() + # project it
-  theme_pomological_map() # nice background color 
+  coord_sf() 
 
 # TODO
 
 # calculate rates
-# spatial join points to zip code
+
+ca_schools <- ca_schools %>%
+  mutate(pbe_rate = pbetot/enrolltot)
+
+# spatial join points to census tract
+
+ca_tracts <- tigris::tracts(state = "CA")
+ca_tracts_sf <- st_as_sf(ca_tracts)
+ca_tracts_sf_transform <- st_transform(ca_tracts_sf, "+proj=longlat +datum=WGS84 +no_defs") # set coordinate reference system
+
+ca_schools_tract_join <- st_join(ca_schools, ca_tracts_sf_transform) # spatial join points to polygons
+
 # spatial join pcsa to zip code
 
