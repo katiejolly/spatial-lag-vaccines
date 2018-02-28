@@ -1,0 +1,67 @@
+---
+title: "Calculating Monte Carlo Moran's I"
+author: "Katie Jolly"
+date: "February 27, 2018"
+output: 
+  html_document:
+    theme: "cosmo"
+    toc: true
+    toc_float: true
+---
+
+# Setup
+
+Packages and data import
+
+```{r message = FALSE, warning = FALSE}
+# packages
+
+library(tidyverse)
+library(janitor)
+library(sf)
+library(ggpomological)
+library(tigris)
+library(fiftystater)
+library(mapview)
+library(spdep)
+```
+
+```{r results = 'hide'}
+# data
+
+ca_schools <- st_read("../california_schools_pbe/CA_schools_PBE.shp") %>%
+  clean_names() # read in the California data
+
+california_background <- fifty_states %>%
+  filter(id == "california") # make a background map of California
+
+ca_tracts <- tigris::tracts(state = "CA")
+
+ca_tracts_sf_transform <- ca_tracts %>% # start with tigris tracts data
+  st_as_sf() %>% # convert to sf
+  st_transform("+proj=longlat +datum=WGS84 +no_defs") # set coordinate reference system
+
+```
+
+# Exploratory analysis
+
+```{r}
+# plot the school locations
+ggplot() +
+  geom_polygon(data = california_background, 
+               aes(x = long, y = lat, group = group),
+               fill = "#e68c7c") + # plot the basemap
+  geom_sf(data = ca_schools, 
+          color = "#4f5157", 
+          alpha = 0.6) + # add the schools point layer
+  coord_sf() 
+```
+
+```{r}
+mapview(ca_schools)
+```
+
+```{r}
+ca_school_dist <- school_districts(state = "CA")
+```
+
