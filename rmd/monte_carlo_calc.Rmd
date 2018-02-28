@@ -61,7 +61,25 @@ ggplot() +
 mapview(ca_schools)
 ```
 
-```{r}
+```{r results='hide'}
 ca_school_dist <- school_districts(state = "CA")
+```
+
+```{r}
+ca_schools <- ca_schools %>%
+  as_data_frame()
+ca_school_coords <- ca_schools %>%
+  select(londec, latdec)
+ca_schools_sp <- SpatialPointsDataFrame(coords = ca_school_coords, ca_schools)
+
+projection <- CRS("+proj=utm +zone=11 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+
+ca_schools_sp <- spTransform(ca_schools_sp, projection)
+
+ca_school_dist_join <- over(ca_schools_sp, ca_school_dist)
+```
+
+```{r}
+mapview(ca_school_dist_join)
 ```
 

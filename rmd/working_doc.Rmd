@@ -1,0 +1,97 @@
+---
+title: "Calculations- working"
+author: "Katie Jolly"
+date: "February 28, 2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: "cosmo"
+---
+
+# Project setup
+
+```{r}
+# packages
+
+library(raster)
+library(rgdal)
+library(sp)
+library(mapview)
+library(leaflet)
+library(tigris)
+library(tidycensus)
+library(tidyverse)
+
+# cache the tigris API calls
+options(tigris_use_cache = TRUE)
+```
+
+## Spatial data: loading + API calls
+
+The tigris data is cached, but not the shapefile. Think about caching all in the future.
+
+```{r}
+ca_schools_shp <- readOGR("C:\\Users\\katie\\Documents\\healthGIS_spatial_lag_modeling\\california_schools_pbe\\CA_schools_PBE.shp")
+
+ca_school_dist_tigris <- school_districts(state = "CA")
+ca_tract_tigris <- tracts(state = "CA", year = 2015)
+ca_block_tigris <- block_groups(state = "CA", year = 2015)
+```
+
+
+## Set CRS
+
+I used California Teale Albers (official state projection) to project the data. `Proj4` found [here](http://spatialreference.org/ref/sr-org/10/proj4/). Guidance found in Nick Eubank's [post]()
+
+```{r}
+common_crs <- CRS("+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
+
+ca_tract_tigris_proj <- spTransform(ca_tract_tigris, common_crs)
+ca_block_tigris_proj <- spTransform(ca_block_tigris, common_crs)
+ca_school_dist_tigris_proj <- spTransform(ca_school_dist_tigris, common_crs)
+
+ca_schools_shp_proj <- spTransform(ca_schools_shp, common_crs)
+```
+
+# Spatial joins
+
+Did a spatial join with the school location data and each of the three levels of geography. 
+
+```{r}
+schools_data_full <- tibble()
+ca_dist_join <- over(ca_schools_shp_proj, ca_school_dist_tigris_proj) # schools + districts
+ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_dist_join) # set the new data
+
+
+ca_tract_join <- over(ca_schools_shp_proj, ca_tract_tigris_proj) # schools + tracts
+ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_tract_join) # set the new data
+
+ca_block_join <- over(ca_schools_shp_proj, ca_block_tigris_proj) # schools + block
+ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_block_join) # set the new data
+
+schools_data_full <- ca_schools_shp_proj@data %>% # pull out the data to work with 
+  as_tibble()
+```
+
+# Descriptive statistics
+
+```{r}
+schools_data <- schools_data_full %>%
+  dplyr::select(c(CDSCode, Street, City, Zip, County_1, PublicPriv, Name, LatDec, LonDec, EnrollTot, PBETot, GEOID, NAME, LOGRADE, HIGRADE, GEOID.2, GEOID.3)) %>%
+  rename(county = County_1,
+         latitute = LatDec,
+         longitude = LonDec,
+         geoid_dist = GEOID, 
+         dist_name = NAME,
+         lo_grade = LOGRADE,
+         hi_grade = HIGRADE,
+         geoid_tract = GEOID.2,
+         geoid_block = GEOID.3) %>%
+  clean_names()
+
+nlevels(factor(schools_data$geoid_dist)) # number of school districts
+nlevels(factor(schools_data$geoid_tract)) # number of census tracts
+nlevels(factor(schools_data$geoid_block)) # number of block groups
+```
+
