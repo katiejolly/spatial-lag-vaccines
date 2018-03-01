@@ -9,6 +9,11 @@ output:
     theme: "cosmo"
 ---
 
+```{r include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+
 # Project setup
 
 ```{r}
@@ -17,11 +22,14 @@ output:
 library(raster)
 library(rgdal)
 library(sp)
-library(mapview)
 library(leaflet)
 library(tigris)
 library(tidycensus)
 library(tidyverse)
+library(janitor)
+library(gridExtra)
+library(ggthemes)
+library(spdep)
 
 # cache the tigris API calls
 options(tigris_use_cache = TRUE)
@@ -45,7 +53,7 @@ ca_block_tigris <- block_groups(state = "CA", year = 2015)
 I used California Teale Albers (official state projection) to project the data. `Proj4` found [here](http://spatialreference.org/ref/sr-org/10/proj4/). Guidance found in Nick Eubank's [post]()
 
 ```{r}
-common_crs <- CRS("+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
+common_crs <- CRS("+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs +init=epsg:26911")
 
 ca_tract_tigris_proj <- spTransform(ca_tract_tigris, common_crs)
 ca_block_tigris_proj <- spTransform(ca_block_tigris, common_crs)
@@ -59,7 +67,6 @@ ca_schools_shp_proj <- spTransform(ca_schools_shp, common_crs)
 Did a spatial join with the school location data and each of the three levels of geography. 
 
 ```{r}
-schools_data_full <- tibble()
 ca_dist_join <- over(ca_schools_shp_proj, ca_school_dist_tigris_proj) # schools + districts
 ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_dist_join) # set the new data
 
@@ -70,6 +77,8 @@ ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_tract_join) 
 ca_block_join <- over(ca_schools_shp_proj, ca_block_tigris_proj) # schools + block
 ca_schools_shp_proj@data <- data.frame(ca_schools_shp_proj@data, ca_block_join) # set the new data
 
+schools_data_full <- tibble() # create an empty tibble for the data because otherwise it doesn't clear when you run it again
+
 schools_data_full <- ca_schools_shp_proj@data %>% # pull out the data to work with 
   as_tibble()
 ```
@@ -77,8 +86,8 @@ schools_data_full <- ca_schools_shp_proj@data %>% # pull out the data to work wi
 # Descriptive statistics
 
 ```{r}
-schools_data <- schools_data_full %>%
-  dplyr::select(c(CDSCode, Street, City, Zip, County_1, PublicPriv, Name, LatDec, LonDec, EnrollTot, PBETot, GEOID, NAME, LOGRADE, HIGRADE, GEOID.2, GEOID.3)) %>%
+schools_data <- schools_data_full %>% # take only the important variables
+  dplyr::select(c(CDSCode, Street, City, Zip, County_1, PublicPriv, Name, LatDec, LonDec, EnrollTot, PBETot, GEOID, NAME, LOGRADE, HIGRADE, GEOID.1, GEOID.2)) %>% # rename some of the ambigous variables
   rename(county = County_1,
          latitute = LatDec,
          longitude = LonDec,
@@ -86,12 +95,199 @@ schools_data <- schools_data_full %>%
          dist_name = NAME,
          lo_grade = LOGRADE,
          hi_grade = HIGRADE,
-         geoid_tract = GEOID.2,
-         geoid_block = GEOID.3) %>%
-  clean_names()
+         geoid_tract = GEOID.1,
+         geoid_block = GEOID.2) %>%
+  clean_names() # make them all lowercase for consistency
 
 nlevels(factor(schools_data$geoid_dist)) # number of school districts
 nlevels(factor(schools_data$geoid_tract)) # number of census tracts
 nlevels(factor(schools_data$geoid_block)) # number of block groups
+```
+
+```{r}
+geo_summarise <- function(group_by) {
+  group_by <- enquo(group_by) # make this useful as a variable to have in dplyr functions
+
+  schools_data %>%
+    group_by(!!group_by) %>% # unquote the group_by variable
+    summarise(pbe = sum(pbetot, na.rm = TRUE), # total number of exemptions
+            enroll = sum(enrolltot, na.rm = TRUE), # total enrollment
+            pbe_rate = pbe/enroll) # geo-wide pbe rate
+}
+
+by_district <- geo_summarise(geoid_dist) # using school district as the geography
+by_tract <- geo_summarise(geoid_tract) # using census tracts as the geography
+by_block <- geo_summarise(geoid_block) # using block groups as the geography
+```
+
+```{r}
+blue <- "#6b8ec6"
+yellow <- "#e4e888"
+
+theme <- theme(axis.title = element_text())
+
+dist_density <- ggplot(by_district, aes(x = pbe_rate)) +
+  geom_density(fill = blue, color = "gray10") +
+  theme_hc() +
+  theme +
+  labs(y = NULL,
+       x = "PBE rate, school district level")
+
+tract_density <- ggplot(by_tract, aes(x = pbe_rate)) +
+  geom_density(fill = blue, color = "gray10") +
+  theme_hc() +
+  theme +
+  labs(y = NULL,
+       x = "PBE rate, census tract level")
+
+block_density <- ggplot(by_block, aes(x = pbe_rate)) +
+  geom_density(fill = blue, color = "gray10") +
+  theme_hc() +
+  theme +
+  labs(y = NULL,
+       x = "PBE rate, block group level")
+
+grid.arrange(dist_density, tract_density, block_density, ncol = 1, nrow = 3)
+```
+
+Observations:
+
+* very right skewed
+  * there are a few geographies with relatively right rates of exemptions
+  * in this case, outliers are very important!
+* general shape is the same, but school district rates are less concentrated
+  * likely because the exemptions are spread out over higher enrollment numbers
+  
+```{r}
+# district_ogive <- ggplot(by_district, aes(x = pbe_rate)) +
+#   stat_ecdf(color = blue, size = 1.7) +
+#   theme_fivethirtyeight() +
+#   theme +
+#   labs(y = NULL,
+#        x = "Cumulative PBE frequency, school district level")
+# 
+# tract_ogive <- ggplot(by_tract, aes(x = pbe_rate)) +
+#   stat_ecdf(color = blue, size = 1.7) +
+#   theme_fivethirtyeight() +
+#   theme +
+#   labs(y = NULL,
+#        x = "Cumulative PBE frequency, census tract level")
+# 
+# block_ogive <- ggplot(by_block, aes(x = pbe_rate)) +
+#   stat_ecdf(color = blue, size = 1.7) +
+#   theme_fivethirtyeight() +
+#   theme +
+#   labs(y = NULL,
+#        x = "Cumulative PBE frequency, block group level")
+
+```
+
+Add more descriptive statistics later!
+
+# Calculate Monte Carlo Moran's I
+
+```{r}
+ca_tract_tigris_join <- ca_tract_tigris %>%
+  geo_join(by_tract, by_sp = "GEOID", by_df = "geoid_tract")
+
+
+ca_district_tigris_join <- ca_school_dist_tigris %>%
+  geo_join(by_district, by_sp = "GEOID", by_df = "geoid_dist")
+
+leaflet(ca_schools_shp) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(
+  clusterOptions = markerClusterOptions()
+)
+```
+
+```{r}
+ca_schools_shp$pbe_rate <- ca_schools_shp$PBETot/ca_schools_shp$EnrollTot # calculate the pbe rates per school
+
+schools_knn <- knearneigh(ca_schools_shp, k = 5) # neighborhood size 5
+
+schools_nb <- knn2nb(schools_knn) # convert to nb object from knn
+
+swm <- nb2mat(schools_nb, style='B') # this makes a spatial weights matrix-- useful but not what I'm looking for
+
+ww <-  nb2listw(schools_nb, style='B') # makes another weights matrix, not sure how it's different but apparently it's what I'm looking for
+
+mc_points <- moran.mc(ca_schools_shp$pbe_rate, ww, nsim = 99) # simulate 99 + 1 times
+
+mc_points # summary of the results
+
+mc_values <- as_tibble(x = mc_points$res) # results of each simulation
+
+ggplot(mc_values, aes(x = value)) +
+  geom_density(fill = "gray50") +
+  geom_vline(xintercept = mc_points$statistic, color = blue, size = 1.5) +
+  theme_hc() +
+  labs(y = NULL, x = "Moran's I index values",
+       title = "Distribution of expected Moran's I statistics using k-nearest neighbors",
+       subtitle = "Neighborhood size (k) = 5") +
+  annotate("text", x = 0.23, y = 50, label = "Computed statistic")
+
+moran_knn_schools <- function(k = 5, nsim = 99){
+  knn <- knearneigh(ca_schools_shp, k = k)
+  nb <- knn2nb(knn) 
+  ww <- nb2listw(nb, style = 'B')
+  moran <- moran.mc(ca_schools_shp$pbe_rate, ww, nsim = nsim)
+}
+
+stats <- c()
+p <- c()
+for (k in 1:100){
+  knn <- moran_knn_schools(k = k)
+  stats <- c(stats, knn$statistic)
+  p <- c(p, knn$p.value)
+}
+
+stats # vector of statistics (index values)
+p # vector of p-values
+
+moran_results <- tibble(index = 1:100,
+                        value = stats,
+                        p = p) # make it all into a tibble with index values
+
+ggplot(moran_results, aes(x = index, y = value)) +
+  geom_point(color = blue) +
+  labs(y = "Moran's I statistic",
+       x = "k (neighborhood size)",
+       title = "Spatial Autocorrelation of Personal Belief Exemptions",
+       subtitle = "Results of computing Monte Carlo Moran's I with k neighbors, 6469 California kindergartens") +
+  theme_hc()
+
+```
+
+# Data coverage
+
+For which school districts do we have data?
+
+```{r}
+crs_leaflet <- leafletCRS(proj4def = "+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs +towgs84=0,0,0 +init=epsg:26911")
+
+leaflet(ca_district_tigris_join) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = blue,
+  weight = 0,
+  opacity = 0,
+  color = NULL,
+  dashArray = NULL,
+  fillOpacity = 0.9)
+```
+
+For which census tracts do we have data?
+
+```{r}
+ca_tract_tigris_join <- subset(ca_tract_tigris_join, !is.na(pbe_rate)) # take out NA census tracts
+
+leaflet(ca_tract_tigris_join) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = blue,
+  weight = 0,
+  opacity = 0,
+  color = NULL,
+  dashArray = NULL,
+  fillOpacity = 0.9)
 ```
 
