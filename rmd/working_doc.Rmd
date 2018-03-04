@@ -236,6 +236,7 @@ moran_knn_schools <- function(k = 5, nsim = 99){
 
 stats <- c()
 p <- c()
+
 for (k in 1:100){
   knn <- moran_knn_schools(k = k)
   stats <- c(stats, knn$statistic)
@@ -263,6 +264,8 @@ ggplot(moran_results, aes(x = index, y = value)) +
 
 For which school districts do we have data?
 
+Join problem with the data!!! 
+
 ```{r}
 crs_leaflet <- leafletCRS(proj4def = "+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs +towgs84=0,0,0 +init=epsg:26911")
 
@@ -273,7 +276,11 @@ leaflet(ca_district_tigris_join) %>%
   opacity = 0,
   color = NULL,
   dashArray = NULL,
-  fillOpacity = 0.9)
+  fillOpacity = 0.9) %>%
+  addMarkers(data = ca_schools_shp,
+  clusterOptions = markerClusterOptions(),
+  label = ~as.character(Name)
+)
 ```
 
 For which census tracts do we have data?
