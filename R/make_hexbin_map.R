@@ -19,7 +19,7 @@ basemap <- ggplot() +
 plot <- basemap +
   stat_summary_hex(data = schools_data, aes(x = longitude, 
                                             y = latitute, z = pbe_rate),
-                   fun = mean, bins = 70, alpha = 0.7, color = "gray70") +
+                   fun = mean, bins = 70, alpha = 1, color = "gray70") +
   scale_fill_distiller(palette = "Spectral", name="Rate per 100 students", 
                        guide = guide_legend( keyheight = unit(2, units = "mm"), keywidth=unit(8, units = "mm"), label.position = "bottom", title.position = 'top', nrow=1) 
   ) +
