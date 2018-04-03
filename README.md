@@ -109,7 +109,7 @@ Instead of selecting points within a buffer of each other buffer, I calculated a
 
 This gave me a square 6469 x 6469 (the number of schools in my dataset) distance matrix in meters.
 
-![snapshot of the matrix](https://github.com/katiejolly/spatial-lag-vaccines/notes/images/dist_matrix.JPG)
+![snapshot of the matrix](https://raw.githubusercontent.com/katiejolly/spatial-lag-vaccines/working/notes/images/dist_matrix.JPG)
 
 I then inverted the values to get the inverse distance weightings. I rounded the values to 6 decimal places.
 
