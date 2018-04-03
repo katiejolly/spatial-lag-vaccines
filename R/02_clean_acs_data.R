@@ -1,5 +1,5 @@
 library(tidyverse)
-library(tidycensus)
+# library(tidycensus)
 
 load("data/01_acs_data.Rdata")
 

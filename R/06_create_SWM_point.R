@@ -4,6 +4,8 @@ library(tidyverse)
 library(sf)
 library(raster)
 
+options(scipen = 999)
+
 load("data/04_spatial_joins.RData")
 
 utm11N_ESPG <- 26911
@@ -35,8 +37,12 @@ point_coords <- st_coordinates(points_spatial_join)
 
 dist_matrix <- pointDistance(p1 = point_coords, lonlat = TRUE) # create matrix of distances between all of the points (upper triangle part is NA, symmetrical matrix about the diagonal)
 
-idw_weights <- round(1/dist_matrix, 4)
+dist_matrix[upper.tri(dist_matrix)] = t(dist_matrix)[upper.tri(dist_matrix)] # make the upper triangle part symmetric to the lower
 
-idw_weights[!is.finite(idw_weights)] <- NA
+for(i in 1:dim(dist_matrix)[1]) {dist_matrix[i,i] = 0} # assign 0 to diagonal values 
+
+idw_dist_matrix <- ifelse(dist_matrix!=0, round(1/dist_matrix, 6), dist_matrix) # inverse unless 0, round to 6 decimal places
+
+idw_matrix <- mat2listw(idw_dist_matrix, style = "W")
 
 saveRDS(idw_weights, file = "data/idw_weights_matrix.RDS")
