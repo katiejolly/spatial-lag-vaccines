@@ -1,0 +1,11 @@
+library(tidyverse)
+library(summarytools)
+library(sf)
+
+pbe <- read_sf("california_schools_pbe/CA_schools_PBE.shp") %>%
+  mutate(pbe_rate = PBETot/EnrollTot)
+
+
+pbe %>% 
+  select(pbe_rate) %>%
+  descr(transpose = TRUE)

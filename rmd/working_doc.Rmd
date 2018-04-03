@@ -204,7 +204,7 @@ leaflet(ca_schools_shp) %>%
 ```{r}
 ca_schools_shp$pbe_rate <- ca_schools_shp$PBETot/ca_schools_shp$EnrollTot # calculate the pbe rates per school
 
-schools_knn <- knearneigh(ca_schools_shp, k = 5) # neighborhood size 5
+schools_knn <- knearneigh(ca_schools_shp, k = 10) # neighborhood size 5
 
 schools_nb <- knn2nb(schools_knn) # convert to nb object from knn
 
@@ -227,7 +227,7 @@ ggplot(mc_values, aes(x = value)) +
        subtitle = "Neighborhood size (k) = 5") +
   annotate("text", x = 0.23, y = 50, label = "Computed statistic")
 
-moran_knn_schools <- function(k = 5, nsim = 99){
+moran_knn_schools <- function(k = 10, nsim = 99){
   knn <- knearneigh(ca_schools_shp, k = k)
   nb <- knn2nb(knn) 
   ww <- nb2listw(nb, style = 'B')

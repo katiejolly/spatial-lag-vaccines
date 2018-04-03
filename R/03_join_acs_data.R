@@ -1,7 +1,7 @@
 library(tidyverse)
 library(sf)
 
-load("data/acs_data_clean.RData")
+load("data/02_acs_data_clean.RData")
 
 
 demographic_data_tracts <- total_pop_tracts_clean %>%
@@ -24,4 +24,4 @@ demographic_data_tracts_sf <- demographic_data_tracts %>%
   select(-variable) %>%
   st_as_sf()
 
-save(demographic_data_tracts_sf, file = "data/demographic_variables_sf.RData")
+save(demographic_data_tracts_sf, file = "data/03_demographic_variables_sf.RData")

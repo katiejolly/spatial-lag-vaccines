@@ -1,7 +1,7 @@
 library(tidyverse)
 library(tidycensus)
 
-load("data/acs_data.Rdata")
+load("data/01_acs_data.Rdata")
 
 # get all the variables for 2015 in order to create a matching table
 
@@ -206,4 +206,4 @@ cross_geometry <- total_pop_tracts %>%
 
 # Write all the clean, final tables to a .RData file
 
-save(cross_geometry, education_attain_tracts_clean, foreign_born_tracts_clean, HH_median_income_tracts_clean, hisp_latino_origin_clean, median_age_tracts_clean, race_tracts_clean, total_pop_tracts_clean, file = "data/acs_data_clean.RData")
+save(cross_geometry, education_attain_tracts_clean, foreign_born_tracts_clean, HH_median_income_tracts_clean, hisp_latino_origin_clean, median_age_tracts_clean, race_tracts_clean, total_pop_tracts_clean, file = "data/02_acs_data_clean.RData")

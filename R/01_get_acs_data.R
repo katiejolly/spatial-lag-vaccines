@@ -45,5 +45,5 @@ HH_median_income_tracts <- get_acs(geography = "tract",
 
 # save all the files to one RData file for easy loading next time
 
-save(education_attain_tracts, foreign_born_tracts, HH_median_income_tracts, hisp_latino_origin_tracts, median_age_tracts, race_tracts, total_pop_tracts, file = "data/acs_data.RData")
+save(education_attain_tracts, foreign_born_tracts, HH_median_income_tracts, hisp_latino_origin_tracts, median_age_tracts, race_tracts, total_pop_tracts, file = "data/01_acs_data.RData")
 
