@@ -39,23 +39,7 @@ Code in `"R/01_get_acs_data.R"`
 
 First, I needed to translate variable names from their encoding to the actual words.
 
-I wrote a function for that (it allows formats them to eventually be variable names)
-
-`translate_variable_names <- function(data) { # function to add more descriptive variable names to the census files. Uses the v15 table as a crosswalk file.
-
-  data <- data %>%
-
-    left_join(
-
-      v15 %>% select(name, lab = label) %>% mutate(name = gsub("E", "", name)),
-
-      by = c("variable" = "name")
-
-    ) %>%
-
-    mutate(lab = str_to_lower(str_replace_all(lab, "\\!!| ", "_")))
-
-}`
+I wrote a function for that (it allows formats them to eventually be variable names) called `translate_variable_names()`
 
 Then for each tract I found the estimate and MOE for all of my variables of interest from each table. I'm sure there's a better way to do this. I'd like to eventually make this a function. Violates DRY quite a few times...
 
@@ -113,4 +97,8 @@ This gave me a square 6469 x 6469 (the number of schools in my dataset) distance
 
 I then inverted the values to get the inverse distance weightings. I rounded the values to 6 decimal places.
 
-I then converted the matrix object to a list object
+I then converted the matrix object to a list object using `spdep::mat2listw()`. 
+
+Code in `"R/06_create_SWM_point.R"`
+
+Data in `"data/06_iwd_weights.RData"`

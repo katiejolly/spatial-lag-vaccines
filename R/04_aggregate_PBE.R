@@ -26,7 +26,10 @@ pbe_names <- to_any_case(names(pbe), case = "snake")
 names(pbe) <- pbe_names
 
 points_spatial_join <- st_join(demographic_data_tracts_sf, pbe,  join = st_contains) %>%
-  drop_na(school_name)
+  drop_na(school_name) %>%
+  st_set_geometry(NULL) %>% # get rid of the tract geometry
+  st_as_sf(coords = c("lon_dec", "lat_dec"), 
+           crs = utm11N_ESPG, agr = "constant")
 
 tracts_spatial_join <- st_join(demographic_data_tracts_sf, pbe, join = st_intersects) 
 
